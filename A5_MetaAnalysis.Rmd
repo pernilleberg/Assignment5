@@ -28,11 +28,13 @@ mean(Meta_df$SampleSizeSchizo)
 mean(Meta_df$SampleSizeContros, na.rm=T)
 
 #Calculate effect size (Cohen's D) and SE
+#Pitch Mean:
 PitchSchizo_mean=escalc('SMD', n1i=SampleSizeContros, n2i= SampleSizeSchizo, m1i = PitchMeanControls, m2i=PitchMeanSchizo, sd1i=PitchMeanControlsSD, sd2i=PitchMeanSchizoSD, data = Meta_df)
 
+#Pitch SD
 PitchSchizo_SD=escalc('SMD', n1i=SampleSizeContros, n2i= SampleSizeSchizo, m1i = PitchSDControls, m2i= PitchSDSchizo, sd1i = PitchSDControlsSD, sd2i= PitchSDSchizoSD , data = Meta_df)
 
-
+#Making models and forest plots
 m1 = rma(yi,vi,data = PitchSchizo_mean, slab = Article)
 forest(m1)
 summary(m1)
@@ -73,29 +75,32 @@ summary(m2)
 #Reading in old data
 setwd("C:/Users/Ejer/Desktop/3. semester/Experimental Methods 3/Assignment2")
 Firstdata = read.csv("AcousticFeatures.csv")
+
+#Doing some cleaning of old data
 Firstdata$ID = as.factor(Firstdata$ID)
-
 Firstdata$study = as.factor(Firstdata$study)
-
 Firstdata$diagnosis = as.factor(Firstdata$diagnosis)
-
 Firstdata$diagnosis = plyr::revalue(Firstdata$diagnosis,c("0"="control","1"="schizophrenia"))
 
+#Getting mean and sd for controls
 temp = subset(Firstdata,diagnosis == "control")
 mean(temp$meanv)
 mean(temp$sdv)
 
+#Getting sd of mean and sd for controls
 sd(temp$meanv)
 sd(temp$sdv)
 
-
+#Getting mean and sd for patients
 temp1 = subset(Firstdata,diagnosis == "schizophrenia")
 mean(temp1$meanv)
 mean(temp1$sdv)
 
+#Getting sd of mean and sd for patients
 sd(temp1$meanv)
 sd(temp1$sdv)
 
+#Creating a new df with all this beautiful info
 mydat = data.frame(Article = "my_data", Year = "2017", SampleSizeSchizo = 85, SampleSizeContros = 85, PitchMeanControls = 141.0266, PitchMeanControlsSD = 25.78532, PitchMeanSchizo = 149.0399, PitchMeanSchizoSD = 22.75408 , PitchSDControls = 49.09909, PitchSDControlsSD = 18.59616, PitchSDSchizo = 55.38506, PitchSDSchizoSD =32.83777)
 
 #write.csv(mydat, "My_data.csv")
@@ -103,13 +108,17 @@ mydat = data.frame(Article = "my_data", Year = "2017", SampleSizeSchizo = 85, Sa
 mydat = read.csv("My_data.csv")
 mydat = subset(mydat, select =-c(X))
 
+#Binding old data with meta data
 NewData = rbind(Meta_df,mydat)
 
-#Estimating Cohen's D on a dataframe which includes my data
+#Estimating Cohen's D and SE on a dataframe which includes both meta nad old data
+#Mean
 PitchSchizo_mean2=escalc('SMD', n1i=SampleSizeContros, n2i= SampleSizeSchizo, m1i = PitchMeanControls, m2i=PitchMeanSchizo, sd1i=PitchMeanControlsSD, sd2i=PitchMeanSchizoSD, data = NewData)
 
+#SD
 PitchSchizo_SD2=escalc('SMD', n1i=SampleSizeContros, n2i= SampleSizeSchizo, m1i = PitchSDControls, m2i= PitchSDSchizo, sd1i= PitchSDControlsSD, sd2i= PitchSDSchizoSD, data = NewData)
 
+#Making more models and forest plots
 m4 = rma(yi,vi,data = PitchSchizo_mean2, slab = Article)
 forest(m4)
 summary(m4)
@@ -122,9 +131,11 @@ summary(m5)
 3. Assess the quality of the literature: report and comment on heterogeneity of the studies (tau, I2), on publication bias (funnel plot), and on influential studies.
 
 ```{r}
+#Getting the estimate of effect size, SE, tau^2, I^2 and even some p-values (woop)
 summary(m4)
 summary(m5)
 
+#Looking for influential studies
 inf_mean <- influence(m4)
 print(inf_mean)
 plot(inf_mean)
