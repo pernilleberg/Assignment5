@@ -1,0 +1,162 @@
+---
+title: "Assignment 5 - Meta-analysis of pitch in schizophrenia"
+author: "Riccardo Fusaroli"
+date: "3/7/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Building on the shoulders of giants: meta-analysis
+
+## Questions to be answered
+
+1. What is the current evidence for distinctive patterns of pitch mean and pitch sd in schizophrenia? Report how many papers report quantitative estimates, your method to analyze them, the estimated effect size of the difference (mean effect size and standard error for pitch mean, same for pitch sd) and forest plots representing it. 
+
+```{r}
+library(pacman)
+p_load(metafor,lmerTest,ggplot2,dplyr)
+
+Meta_df = read.csv("Data.csv", sep = ";")
+
+sum(Meta_df$SampleSizeSchizo)
+sum(Meta_df$SampleSizeContros,na.rm = T)
+
+mean(Meta_df$SampleSizeSchizo)
+mean(Meta_df$SampleSizeContros, na.rm=T)
+
+#Calculate effect size (Cohen's D) and SE
+PitchSchizo_mean=escalc('SMD', n1i=SampleSizeContros, n2i= SampleSizeSchizo, m1i = PitchMeanControls, m2i=PitchMeanSchizo, sd1i=PitchMeanControlsSD, sd2i=PitchMeanSchizoSD, data = Meta_df)
+
+PitchSchizo_SD=escalc('SMD', n1i=SampleSizeContros, n2i= SampleSizeSchizo, m1i = PitchSDControls, m2i= PitchSDSchizo, sd1i = PitchSDControlsSD, sd2i= PitchSDSchizoSD , data = Meta_df)
+
+
+m1 = rma(yi,vi,data = PitchSchizo_mean, slab = Article)
+forest(m1)
+summary(m1)
+
+m2 = rma(yi, vi, data = PitchSchizo_SD, slab = Article)
+forest(m2)
+summary(m2)
+
+
+#Effectsize = the difference between two means (how big is the effect?)
+#Cohen's D = standardized difference between two mean (it's a standardized effect size)
+  #Cohen's D = Mean 1 - Mean 2/Pooled SD
+  #Pooled SD can be calculated using metafor package
+  #We also want the variance of Cohen's D
+  #Y1 = Cohen's D
+  #V1 = variance of Cohen's D
+  #Needed in the lmer 
+#lmer(effectsize ~ 1 + (1|Study),weights = 1/variance)
+#Adding study as a random effect --> studies might not be tapping into the same population --> a hetereogenous population (symptomps might be different for the participants within each study) --> See slide 13
+#lm(effectsize ~ 1) --> result intercept = mean of effect size across studies, like a t-test, comparing to the mean (which is intercept)
+#Adding weight = 1/variance --> the smaller the sample size, the less the study should "count" to the mean --> the mean becomes weighted. 
+#lmer(yi ~ 1 + (1 | study), weights = 1/vi, data=data, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore")))
+
+#to make forrest plot:
+#rma(Yi, Vi, data, Slab = study)
+#forest(m1)
+
+#Tau^2 = how spread are the effectsizes and their CI --> are the studies tapping into the same population? (If large = yes)
+#I2 = variance which could not be reduced to Tau^2 --> if Tau is larger, I is small --> homogenours population is big
+
+
+```
+
+2. Do the results match your own analysis from Assignment 3? If you add your results to the meta-analysis, do the estimated effect sizes change? Report the new estimates and the new forest plots.
+
+
+```{r}
+#Reading in old data
+setwd("C:/Users/Ejer/Desktop/3. semester/Experimental Methods 3/Assignment2")
+Firstdata = read.csv("AcousticFeatures.csv")
+Firstdata$ID = as.factor(Firstdata$ID)
+
+Firstdata$study = as.factor(Firstdata$study)
+
+Firstdata$diagnosis = as.factor(Firstdata$diagnosis)
+
+Firstdata$diagnosis = plyr::revalue(Firstdata$diagnosis,c("0"="control","1"="schizophrenia"))
+
+temp = subset(Firstdata,diagnosis == "control")
+mean(temp$meanv)
+mean(temp$sdv)
+
+sd(temp$meanv)
+sd(temp$sdv)
+
+
+temp1 = subset(Firstdata,diagnosis == "schizophrenia")
+mean(temp1$meanv)
+mean(temp1$sdv)
+
+sd(temp1$meanv)
+sd(temp1$sdv)
+
+mydat = data.frame(Article = "my_data", Year = "2017", SampleSizeSchizo = 85, SampleSizeContros = 85, PitchMeanControls = 141.0266, PitchMeanControlsSD = 25.78532, PitchMeanSchizo = 149.0399, PitchMeanSchizoSD = 22.75408 , PitchSDControls = 49.09909, PitchSDControlsSD = 18.59616, PitchSDSchizo = 55.38506, PitchSDSchizoSD =32.83777)
+
+#write.csv(mydat, "My_data.csv")
+
+mydat = read.csv("My_data.csv")
+mydat = subset(mydat, select =-c(X))
+
+NewData = rbind(Meta_df,mydat)
+
+#Estimating Cohen's D on a dataframe which includes my data
+PitchSchizo_mean2=escalc('SMD', n1i=SampleSizeContros, n2i= SampleSizeSchizo, m1i = PitchMeanControls, m2i=PitchMeanSchizo, sd1i=PitchMeanControlsSD, sd2i=PitchMeanSchizoSD, data = NewData)
+
+PitchSchizo_SD2=escalc('SMD', n1i=SampleSizeContros, n2i= SampleSizeSchizo, m1i = PitchSDControls, m2i= PitchSDSchizo, sd1i= PitchSDControlsSD, sd2i= PitchSDSchizoSD, data = NewData)
+
+m4 = rma(yi,vi,data = PitchSchizo_mean2, slab = Article)
+forest(m4)
+summary(m4)
+
+m5 = rma(yi, vi, data = PitchSchizo_SD2, slab = Article)
+forest(m5)
+summary(m5)
+```
+
+3. Assess the quality of the literature: report and comment on heterogeneity of the studies (tau, I2), on publication bias (funnel plot), and on influential studies.
+
+```{r}
+summary(m4)
+summary(m5)
+
+inf_mean <- influence(m4)
+print(inf_mean)
+plot(inf_mean)
+#Martinez et al appears to be an influential studies
+
+inf_sd = influence(m5)
+print(inf_sd)
+plot(inf_sd)
+#Cohen et al appears to be an influenctial study
+
+#Assessing publication bias
+#Mean
+funnel(m4, main = "Random-Effects Model",xlab = "Standardized Mean Difference")
+regtest(m4)
+ranktest(m4)
+
+#SD
+funnel(m5, main = "Random-Effects Model", xlab = "Standardized Mean Difference")
+regtest(m5)
+ranktest(m5)
+```
+
+## Tips on the process to follow:
+
+- Download the data on all published articles analyzing pitch in schizophrenia: https://www.dropbox.com/s/pmgw8wzc308so1p/Data.csv?dl=0
+- Following the procedure in the slides calculate effect size and standard error of the effect size per each study. N.B. we focus on pitch mean and pitch standard deviation.
+ . first try using lmer (to connect to what you know of mixed effects models)
+ . then use rma() (to get some juicy additional statistics)
+
+- Build a forest plot of the results (forest(model))
+ 
+- Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
+
+- Now look at the output of rma() and check tau and I2
+
